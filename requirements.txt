@@ -1,7 +1,6 @@
 Flask
 flask-cors
-tflite-runtime
-keras
 Pillow
 numpy
+tflite-runtime
 google-generativeai

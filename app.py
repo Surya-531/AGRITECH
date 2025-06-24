@@ -1,9 +1,10 @@
 from flask import Flask, request, jsonify, render_template
-from tensorflow.keras.models import model_from_json
+# from tensorflow.keras.models import model_from_json
 import numpy as np
 from PIL import Image
 import keras
 import google.generativeai as genai
+import tflite_runtime.interpreter as tflite
 import os
 import re
 from flask_cors import CORS
@@ -11,12 +12,11 @@ from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
-# Load the model architecture and weights
-with open("plant_model.json", "r", encoding="utf-8") as f:
-    model = model_from_json(f.read())
 
-model.load_weights("plant_model.weights.h5")
-model.compile(optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"])
+interpreter = tflite.Interpreter(model_path="plant_model.tflite")
+interpreter.allocate_tensors()
+input_details = interpreter.get_input_details()
+output_details = interpreter.get_output_details()
 
 # 38-class label list (must match model training order exactly)
 labels = [
@@ -51,12 +51,23 @@ def predict():
     if not file:
         return jsonify({"result": "No file uploaded"}), 400
 
+    # try:
+    #     img = preprocess_image(file)
+    #     prediction = model.predict(img)
+    #     predicted_class = labels[np.argmax(prediction)]
+    #     result = re.sub(r'\b(\w+)( \1\b)+', r'\1', predicted_class.replace("_", " "))
+    #     confidence = float(np.max(prediction)) * 100
+    #     return jsonify({"result": f"{result} ({confidence:.2f}%)"})
+    # except Exception as e:
+    #     return jsonify({"result": f"Error: {str(e)}"}), 500
     try:
-        img = preprocess_image(file)
-        prediction = model.predict(img)
-        predicted_class = labels[np.argmax(prediction)]
+        input_data = preprocess_image(file)
+        interpreter.set_tensor(input_details[0]['index'], input_data)
+        interpreter.invoke()
+        output_data = interpreter.get_tensor(output_details[0]['index'])
+        predicted_class = labels[np.argmax(output_data)]
         result = re.sub(r'\b(\w+)( \1\b)+', r'\1', predicted_class.replace("_", " "))
-        confidence = float(np.max(prediction)) * 100
+        confidence = float(np.max(output_data)) * 100
         return jsonify({"result": f"{result} ({confidence:.2f}%)"})
     except Exception as e:
         return jsonify({"result": f"Error: {str(e)}"}), 500
