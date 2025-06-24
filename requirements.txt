@@ -1,6 +1,5 @@
 Flask
 flask-cors
-python-3.10.12
 tensorflow
 keras
 Pillow
