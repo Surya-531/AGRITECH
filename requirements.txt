@@ -1,0 +1,7 @@
+Flask
+flask-cors
+tensorflow
+keras
+Pillow
+numpy
+google-generativeai
